@@ -66,55 +66,6 @@ func TestParseFail(t *testing.T) {
 	}
 }
 
-func TestStackPush(t *testing.T) {
-	// setup
-	s := Stack{}
-	// test
-	s.Push(0)
-	s.Push(1)
-	// assert
-	expected_sp := 2
-	if s.sp != expected_sp {
-		t.Fatalf("Stack pointer incorrect. Is %d expected %d", s.sp, expected_sp)
-	}
-	expected_data := 1
-	if s.data[1] != expected_data {
-		t.Fatalf("Incorrect data %d expected %d", s.data[1], expected_data)
-	}
-}
-
-func TestStackPop(t *testing.T) {
-	// setup
-	s := Stack{}
-	// test
-	s.Push(0)
-	s.Push(1)
-	result, err := s.Pop()
-	// assert
-	if err != nil {
-		t.Fatalf("Pop() returned error %d", err)
-	}
-	expected_sp := 1
-	if s.sp != expected_sp {
-		t.Fatalf("Stack pointer incorrect. Is %d expected %d", s.sp, expected_sp)
-	}
-	expected_data := 1
-	if result != expected_data {
-		t.Fatalf("Incorrect data %d expected %d", result, expected_data)
-	}
-}
-
-func TestStackPopFail(t *testing.T) {
-	// setup
-	s := Stack{}
-	// test
-	_, err := s.Pop()
-	// assert
-	if err == nil {
-		t.Fatalf("Pop() on empty stack did not return error")
-	}
-}
-
 func TestFilterBlanks(t *testing.T) {
 	// setup
 	s := []string{"hello", "", "world", "", ""}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -11,33 +10,14 @@ import (
 	"strings"
 )
 
-type Stack struct {
-	data [1024]int
-	sp   int // default 0
-}
-
-func (s *Stack) Pop() (int, error) {
-	if s.sp <= 0 {
-		return 0, errors.New("SP already at 0")
-	}
-	s.sp -= 1
-	return s.data[s.sp], nil
-}
-
-func (s *Stack) Push(val int) {
-	s.data[s.sp] = val
-	s.sp += 1
-}
-
 // The line struct stores information about the lines we are translating
 type Instruction struct {
 	raw string
 
 	// computed values (by NewLine constructor)
 	stripped        string
-	empty           bool // default: false
-	lineNum         int  // Input linenum
-	translatedLines []string
+	empty           bool     // default: false
+	translatedLines []string // The resulting translations
 
 	// Parsed values
 	operation string // push, pop, `function`
@@ -70,10 +50,6 @@ func (l *Instruction) clean() {
 	} else {
 		l.stripped = before
 	}
-}
-
-func (l *Instruction) isValid() bool {
-	return true
 }
 
 func validateOperation(operation string) bool {
@@ -111,26 +87,15 @@ func validateSegment(segment string) bool {
 	return true
 }
 
-// Filter empty strings from slice of strings
-func filterBlanks(slice []string) []string {
-	var filtered = []string{}
-	for _, t := range slice {
-		if t != "" {
-			filtered = append(filtered, t)
-		}
-	}
-	return filtered
-}
-
 // Parse instruction, tokenize and validate tokens
 func (l *Instruction) parse() error {
 	if l.empty {
-		// log.Println("Empty line, not translated")
 		return nil
 	}
 
 	// Should be either 1 or 3 tokens separated by spaces
 	tokens_w_empty := strings.Split(l.stripped, " ")
+
 	// Multiple spaces will result in empty tokens, so eliminate those
 	tokens := filterBlanks(tokens_w_empty)
 	num_t := len(tokens)
@@ -162,16 +127,7 @@ func (l *Instruction) parse() error {
 	return nil
 }
 
-// Utility function for error handling
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-// Take a line struct, translate it into binary and store translation
-// e.g. MD=A-1;JGE -> 1110110010011011
-func (instr *Instruction) Translate(m *Stack) {
+func (instr *Instruction) Translate() {
 	/*
 		RAM[0]		SP points to next topmost location in stack
 		RAM[1]		LCL points to base of `local` segment
@@ -180,7 +136,6 @@ func (instr *Instruction) Translate(m *Stack) {
 		RAM[4]		THAT points to base of `that` segment
 		RAM[5-12] 	Holds contents of `temp` segment, 8 values
 		RAM[13-15]	Can be used by VM as general purpose
-
 		RAM[256]	Start of global stack
 	*/
 	segmentMap := map[string]string{
@@ -407,9 +362,6 @@ func main() {
 	check(err)
 	defer file.Close()
 
-	// Define memory stack
-	var stack = Stack{}
-
 	// Scan through it line by line
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -417,7 +369,6 @@ func main() {
 	// Start translation
 	log.Println("Starting translation")
 	var processedInstructions []*Instruction
-	lineNum := 0
 	for scanner.Scan() {
 		text := scanner.Text()
 		inLine := NewInstruction(text)
@@ -425,12 +376,10 @@ func main() {
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
-		inLine.lineNum = lineNum
 
 		// Only store line if has valid instruction
-		if inLine.isValid() && !inLine.empty {
-			lineNum += 1
-			inLine.Translate(&stack)
+		if !inLine.empty {
+			inLine.Translate()
 			processedInstructions = append(processedInstructions, &inLine)
 		}
 	}

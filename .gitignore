@@ -1,5 +1,7 @@
 output.asm
 
+test_files/**/*.asm
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

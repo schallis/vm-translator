@@ -5,3 +5,8 @@ This is my implementation of a VM Translator for the Hack computer to fulfill th
 The specification is described [here](https://www.nand2tetris.org/project07) and
 in more detail in the book starting on page 148 (see PDF in repo). The slides
 are [here](https://drive.google.com/file/d/1BPmhMLu_4QTcte0I5bK4QBHI8SACnQSt/view)
+
+## TODO
+- [ ] 
+- [ ] Reduce duplication of ASM code
+- [ ] Break out into modules
