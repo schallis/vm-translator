@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -200,11 +201,10 @@ func (instr *Instruction) Translate(m *Stack) {
 				fmt.Sprintf("@%d", instr.value),
 				"D=A",
 				fmt.Sprintf("@%v", segmentMap[instr.segment]),
-				"D=D+M",
-				"@addr",
-				"M=D",
+				"A=M",
+				"D=D+A",
 				// *SP=*addr
-				"@addr",
+				"A=D",
 				"D=M",
 				"@SP",
 				"A=M",
@@ -231,17 +231,10 @@ func (instr *Instruction) Translate(m *Stack) {
 		case "temp":
 			// addr=5+i, *SP=*addr, SP++
 			instr.outputLines(
-				// *addr=LCL+2
-				// Compute the address and store in @addr
-				fmt.Sprintf("@%d", instr.value),
-				"D=A+5", // Might not be valid +5
-				// "@5 // Not sure",
-				// "D=D+5 // Not sure",
-				"@addr",
-				"M=D",
-				// *SP=*addr
-				"@addr",
+				// addr=5+i
+				fmt.Sprintf("@%d", instr.value+5),
 				"D=M",
+				// *SP=*addr
 				"@SP",
 				"A=M",
 				"M=D",
@@ -276,28 +269,34 @@ func (instr *Instruction) Translate(m *Stack) {
 		switch instr.segment {
 		case "local", "argument", "this", "that":
 			// All of these segments are processed the same way
-			// e.g. pop local 2
-			// addr=LCL+2, SP--, *addr=*SP
+			// e.g. pop local i
+			// addr=LCL+i, SP--, *addr=*SP
+			segCode := segmentMap[instr.segment]
 			instr.outputLines(
-				// addr=LCL+2
-				// Compute the address and store in @addr
+				// addr=LCL+i
 				fmt.Sprintf("@%d", instr.value),
 				"D=A",
-				fmt.Sprintf("@%v", segmentMap[instr.segment]),
-				"D=D+M",
-				"@addr",
-				"M=D",
+				fmt.Sprintf("@%v", segCode), // Get Base address
+				"A=M",
+				"D=D+A", // Add value offset e.g. 300+i
+				fmt.Sprintf("@%v", segCode),
+				"M=D", // Set Mem loc corresponding to segment to computed val
 				// SP--
-				// Decrement the SP
 				"@SP",
 				"M=M-1",
 				// *addr=*SP
-				// Assign the SP value to our addr value
-				"@SP",
+				"A=M",
 				"D=M",
-				"@addr",
-				"A=M", // write to memory using pointer
-				"M=D", // RAM[addr] = @SP
+				fmt.Sprintf("@%v", segCode),
+				"A=M",
+				"M=D",
+				fmt.Sprintf("@%v", instr.value),
+				"D=A",
+				fmt.Sprintf("@%v", segCode),
+				"A=M",
+				"D=A-D",
+				fmt.Sprintf("@%v", segCode),
+				"M=D",
 			)
 		case "constant":
 			log.Fatalf("`pop constant` not implemented, doesn't make sense")
@@ -307,24 +306,14 @@ func (instr *Instruction) Translate(m *Stack) {
 		case "temp":
 			// addr=5+i, SP--, *addr=*SP
 			instr.outputLines(
-				// addr=5+i
-				// Compute the address and store in @addr
-				fmt.Sprintf("@%d", instr.value),
-				"D=A+5", // Might not be valid +5
-				// "@5 // Not sure",
-				// "D=D+5 // Not sure",
-				"@addr",
-				"M=D",
 				// SP--
-				// Decrement the SP
 				"@SP",
 				"M=M-1",
 				// *addr=*SP
-				// Assign the SP value to our addr value
-				"@SP",
+				"A=M",
 				"D=M",
-				"@addr",
-				"A=M", // write to memory using pointer
+				// addr=i+5
+				fmt.Sprintf("@%d", instr.value+5),
 				"M=D", // RAM[addr] = @SP
 			)
 		case "pointer":
@@ -348,56 +337,43 @@ func (instr *Instruction) Translate(m *Stack) {
 	case "add":
 		// Take top two stack variables and perform add
 		instr.outputLines(
-			// SP--
+			// Find vals and compute Sum
+			"@SP",
+			"A=M",   // SP address
+			"A=A-1", // SP -1 address
+			"A=A-1", // SP -2 address
+			"D=M",   // Store SP -2 data in D register
+			"A=A+1", // SP -1 address
+			"D=D+M", // Store SP -2 data + SP -1 data
+			// Retract SP by 2 and store val
 			"@SP",
 			"M=M-1",
-			// @one=*SP
-			"@SP",
-			"D=M",
-			"@one",
-			"M=D",
-			// SP--
-			"@SP",
 			"M=M-1",
-			// @two=*SP
-			"@SP",
-			"D=M",
-			"@two",
+			"A=M",
 			"M=D",
-			// *SP=@one+@two
-			"@one",
-			"D=M",
-			"@two",
-			"D=D+M",
+			// Advance SP by 1
 			"@SP",
-			"M=D",
+			"M=M+1",
 		)
 	case "sub":
 		// Take top two stack variables and perform sub
 		instr.outputLines(
-			// SP--
+			"@SP",
+			"A=M",   // SP address
+			"A=A-1", // SP -1 address
+			"A=A-1", // SP -2 address
+			"D=M",   // Store SP -2 data in D register
+			"A=A+1", // SP -1 address
+			"D=D-M", // Store SP -2 data + SP -1 data
+			// Retract SP by 2 and store val
 			"@SP",
 			"M=M-1",
-			// @one=*SP
-			"@SP",
-			"D=M",
-			"@one",
-			"M=D",
-			// SP--
-			"@SP",
 			"M=M-1",
-			// @two=*SP
-			"@SP",
-			"D=M",
-			"@two",
+			"A=M",
 			"M=D",
-			// *SP=@one-@two
-			"@one",
-			"D=M",
-			"@two",
-			"D=D-M",
+			// Advance SP by 1
 			"@SP",
-			"M=D",
+			"M=M+1",
 		)
 	}
 }
@@ -411,6 +387,7 @@ func main() {
 
 	// Read the args for the filename .asm file
 	args := os.Args
+	inSuffix := ".vm"
 	filename := ""
 	if len(args) < 2 || args[1] == "" {
 		filename = "input.vm"
@@ -419,6 +396,11 @@ func main() {
 	} else {
 		filename = args[1]
 	}
+
+	// Compute file metadata
+	dir := filepath.Dir(filename)                  // Directory we're reading/writing in
+	base := filepath.Base(filename)                // Input base filename
+	basename := strings.TrimSuffix(base, inSuffix) // Input filename without suffix
 
 	// Open file
 	file, err := os.Open(filename)
@@ -455,7 +437,7 @@ func main() {
 
 	// Open output file for writing
 	log.Println("Writing output")
-	filenameo := "output.asm"
+	filenameo := filepath.Join(dir, basename+".asm")
 	ofile, err := os.Create(filenameo)
 	check(err)
 	defer ofile.Close()
@@ -469,7 +451,7 @@ func main() {
 		DEBUG := true
 		// Output command with original line num and instruction
 		if DEBUG {
-			comment := fmt.Sprintf("// L%-3v %v\n", instr.lineNum, instr.stripped)
+			comment := fmt.Sprintf("// %v\n", instr.stripped)
 			_, err = w.WriteString(comment)
 			check(err)
 		}

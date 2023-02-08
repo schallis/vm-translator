@@ -10,7 +10,8 @@
 			"request": "launch",
 			"mode": "auto",
 			"program": "${fileDirname}",
-			"args": ["test_files/MemoryAccess/BasicTest/BasicTest.vm"]
+			// "args": ["test_files/MemoryAccess/BasicTest/BasicTest.vm"]
+			"args": ["test_files/MemoryAccess/StaticTest/StaticTest.vm"]
 		}
 	]
 }
